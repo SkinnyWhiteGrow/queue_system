@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Estado de tu Turno</title>
+    <style>
+        
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #e0f7fa, #b2ebf2); /* Gradiente suave inspirado en Vista Aero */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            backdrop-filter: blur(10px); /* Efecto vidrio translúcido */
+            background: rgba(255, 255, 255, 0.2); /* Fondo semitransparente */
+            border-radius: 15px; /* Bordes redondeados */
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra suave */
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(64, 196, 255, 0.3); /* Borde sutil con tu azul claro */
+        }
+        h1 {
+            color: #196a73; /* Azul claro para título, como en tu diseño */
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 24px;
+            color: #212121; /* Texto oscuro para contraste con el fondo translúcido */
+        }
+        .turno {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1bd33a; /* Azul brillante para destacar, como en tu diseño */
+        }
+        .error {
+            font-size: 28px;
+            color: #FF5252; /* Rojo para errores, como en tu diseño */
+        }
+        .called, .removed {
+            font-size: 28px;
+            color: #FF5252; /* Rojo para turnos pasados o eliminados, como en tu diseño */
+        }
+        
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script>
+        // Conexión WebSocket para móvil
+        const socket = io('http://192.168.0.224:5000', {
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+        const hash = "{{ hash | safe }}"; // Obtener hash desde el servidor
+
+        // Depuración exhaustiva
+        socket.on('connect', () => {
+            console.log('[DEBUG] Conectado al servidor WebSocket en http://192.168.0.224:5000');
+        });
+        socket.on('connect_error', (error) => {
+            console.error('[DEBUG] Error de conexión WebSocket:', error.message);
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<p class="error">Error de conexión con el servidor. Intenta recargar la página.</p>';
+        });
+        socket.on('reconnect', (attempt) => {
+            console.log(`[DEBUG] Reconectado al servidor WebSocket tras ${attempt} intentos`);
+        });
+        socket.on('disconnect', () => {
+            console.log('[DEBUG] Desconectado del servidor WebSocket');
+        });
+
+        console.log(`[DEBUG] Hash inicial en status.html: ${hash}`);
+
+        socket.on('queue_updated', (data) => {
+            console.log('[DEBUG] Evento queue_updated recibido:', JSON.stringify(data));
+            updateStatus(data);
+        });
+
+        socket.on('number_removed', (data) => {
+            console.log(`[DEBUG] Evento number_removed recibido: hash=${data.hash}, number=${data.number}`);
+            if (data.hash === hash) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = `<p class="removed">Tu número ${data.number} fue eliminado.</p>`;
+            }
+        });
+
+        // Función para actualizar el estado
+        function updateStatus(data) {
+            const queue = data.queue || [];
+            const currentPosition = queue.findIndex(item => item.hash === hash) + 1;
+
+            console.log(`[DEBUG] WebSocket: hash=${hash}, position=${currentPosition}, status=${queue.find(item => item.hash === hash)?.status}`);
+
+            const statusDiv = document.getElementById('status');
+            if (currentPosition === 1) {
+                statusDiv.innerHTML = '<p class="turno">¡Es tu turno!</p>';
+            } else if (currentPosition > 1 && queue[currentPosition - 1]) {
+                const number = queue[currentPosition - 1].number;
+                statusDiv.innerHTML = `<p><h1>${number}</h1><br/> posición en la cola <strong>${currentPosition}</strong>.</p>`;
+            } else {
+                const item = queue.find(item => item.hash === hash);
+                if (item && item.status === 'called') {
+                    statusDiv.innerHTML = '<p class="called">Tu turno ha pasado.</p>';
+                } else if (item && item.status === 'removed') {
+                    statusDiv.innerHTML = `<p class="removed">Tu número ${item.number} fue eliminado.</p>`;
+                } else {
+                    statusDiv.innerHTML = '<p class="error">Tu número no está en la cola o es inválido.</p>';
+                }
+            }
+        }
+
+        // Carga inicial
+        window.onload = function() {
+            console.log(`[DEBUG] Carga inicial en status.html: hash=${hash}`);
+            fetch('/status', { cache: 'no-store' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[DEBUG] Respuesta inicial de /status:', JSON.stringify(data));
+                    updateStatus(data);
+                })
+                .catch(error => {
+                    console.error('[DEBUG] Error en fetch /status:', error.message);
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.innerHTML = '<p class="error">Error al cargar el estado. Intenta de nuevo.</p>';
+                });
+        };
+    </script>
+</head>
+<body>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="position: fixed; top: 10px; left: 10px; width: 350px; z-index: 1000;">
+    <div class="container">
+        <h1>Tu número es este</h1>
+        <div id="status">
+            {% if number %}
+                {% if status == 'active' %}
+                    {% if position == 1 %}
+                        <p class="turno">¡Es tu turno!</p>
+                    {% else %}
+                        <p><h1>{{ number }}</h1><br/> posición <strong>{{ position }}</strong>.</p>
+                    {% endif %}
+                {% elif status == 'called' %}
+                    <p class="called">Tu turno ha pasado.</p>
+                {% elif status == 'removed' %}
+                    <p class="removed">Tu número fue eliminado.</p>
+                {% endif %}
+            {% else %}
+                <p class="error">Tu número no está en la cola o es inválido.</p>
+            {% endif %}
+        </div>
+        <p>Por favor, espera tu turno.</p>
+    </div>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9641826d89f50360',t:'MTc1MzM0MDEwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>

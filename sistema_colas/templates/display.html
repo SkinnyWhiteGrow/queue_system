@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Estado de la Cola</title>
+    <style>
+        
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #e0f7fa, #b2ebf2); /* Gradiente suave inspirado en Vista Aero */
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            backdrop-filter: blur(10px); /* Efecto vidrio translúcido */
+            background: rgba(255, 255, 255, 0.2); /* Fondo semitransparente */
+            border-radius: 15px; /* Bordes redondeados */
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra suave */
+            width: 90%;
+            max-width: 600px;
+            height: 50%;
+            overflow-y: auto; /* Scroll vertical solo en la tabla */
+            border: 1px solid rgba(255, 255, 255, 0.377); /* Borde sutil con tu azul claro */
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: rgb(29, 122, 133); /* Fondo gris oscuro con opacidad para glassmorphism */
+            width: 80%;
+            backdrop-filter: blur(5px); /* Blur ligero para la tabla */
+            height: auto;
+            
+        }
+        th, td {
+            border-top: 2px solid rgba(255, 255, 255, 0.699); /* Borde azul claro, como en tu diseño */
+            padding: 15px;
+            font-size: 23px;
+            color: rgba(255, 255, 255, 0.699); /* Texto azul claro, como en tu diseño */
+        }
+        th {
+            background-color: rgba(rgba(25, 106, 115, 0)); /* Fondo azul claro con opacidad */
+            color: #ffffff; /* Texto oscuro para contraste, como en tu diseño */
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 23px;
+            background-color: rgba(25, 106, 115, 0.699); /* Azul claro con opacidad */
+            color: #ffffff; /* Texto oscuro, como en tu diseño */
+            border: none;
+            border-radius: 25px; /* Bordes más redondeados para iOS/Vista Aero */
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s; /* Transición suave al hover */
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: rgb(29, 122, 133); /* Azul más brillante al pasar el ratón, como en tu diseño */
+        }
+        .current-number {
+            font-size: 24px;
+            font-weight: bold !important;
+            color: rgb(34, 167, 182); /* Azul claro más brillante, como en tu diseño */
+            margin: 20px;
+        }
+        .current {
+            background-color: rgba(58, 146, 62, 0.9); /* Fondo verde con opacidad */
+            color: #FFFFFF !important; /* Texto blanco para el número actual, como en tu diseño */
+        }
+        .remove-section {
+            margin: 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 23px;
+            border: 2px solid rgba(25, 106, 115, 0.699); /* Borde azul claro, como en tu diseño */
+            border-radius: 25px; /* Bordes redondeados para iOS */
+            background-color: rgba(255, 255, 255, 0.8); /* Fondo gris oscuro con opacidad */
+            color: rgba(25, 106, 115, 0.699); /* Texto azul claro, como en tu diseño */
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #80DEEA; /* Cambio de borde al enfocar */
+            outline: none;
+        }
+        .message {
+            font-size: 23px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #4CAF50; /* Verde para mensajes de éxito, como en tu diseño */
+        }
+        .error {
+            color: #FF5252; /* Rojo para mensajes de error, como en tu diseño */
+        }
+           .remove-section {
+            margin: 20px;
+        }
+    </style>
+ 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('queue_updated', (data) => {
+            const queue = data.queue;
+            const current = data.current;
+            const tbody = document.querySelector('tbody');
+            const currentDiv = document.getElementById('current-number');
+            tbody.innerHTML = '';
+            queue.forEach((item, index) => {
+                const row = document.createElement('tr');
+                if (index === 0) {
+                    row.classList.add('current'); // Resaltar el primer número
+                }
+                row.innerHTML = `<td>${item.number}</td>`;
+                tbody.appendChild(row);
+            });
+            currentDiv.innerHTML = current ? `Número actual: <strong>${current}</strong>` : 'Número actual: <strong>Ninguno</strong>';
+        });
+
+        // Carga inicial
+        window.onload = function() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const queue = data.queue;
+                    const current = data.current;
+                    const tbody = document.querySelector('tbody');
+                    const currentDiv = document.getElementById('current-number');
+                    tbody.innerHTML = '';
+                    queue.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        if (index === 0) {
+                            row.classList.add('current'); // Resaltar el primer número
+                        }
+                        row.innerHTML = `<td>${item.number}</td>`;
+                        tbody.appendChild(row);
+                    });
+                    currentDiv.innerHTML = current ? `Número actual: <strong>${current}</strong>` : 'Número actual: <strong>Ninguno</strong>';
+                });
+        };
+
+        async function callNext() {
+            await fetch('/next', { method: 'POST' });
+        }
+
+        async function removeNumber() {
+            const numberInput = document.getElementById('remove-number').value;
+            const messageDiv = document.getElementById('remove-message');
+            if (!numberInput.match(/^\d{3}$/)) {
+                messageDiv.innerHTML = '<p class="message error">Por favor, ingresa un número válido (e.g., 001).</p>';
+                return;
+            }
+            const response = await fetch(`/remove/${numberInput}`, { method: 'POST' });
+            const result = await response.json();
+            messageDiv.innerHTML = `<p class="message ${result.status}">${result.message}</p>`;
+            if (result.status === 'success') {
+                document.getElementById('remove-number').value = ''; // Limpiar campo
+            }
+        }
+
+         async function resetQueue() {
+            const response = await fetch('/reset_queue', { method: 'POST' });
+            const result = await response.json();
+            const messageDiv = document.getElementById('reset-message');
+            messageDiv.innerHTML = `<p class="message ${result.status}">${result.message}</p>`;
+        }
+    </script>
+</head>
+<body>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="position: fixed; top: 10px; left: 10px; width: 350px; z-index: 1000;">
+    <div class="container">
+       
+        <br/>
+                
+        <button onclick="callNext()">Llamar al Siguiente</button>
+        <div id="current-number">Número actual: <strong>Ninguno</strong></div>
+        <table>
+            <thead>
+                <tr><th>Número de Cola</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+<div class="remove-section">
+            <input type="text" id="remove-number" placeholder="Ingresa número (e.g., 001)">
+            <button onclick="removeNumber()">Eliminar Número</button>
+            <div id="remove-message" class="message"></div>
+        </div>
+            <button style="background-color: red;" onclick="resetQueue()">Resetear Cola</button>
+            <div id="reset-message" class="message"></div>
+    </div>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964181e4ce550360',t:'MTc1MzM0MDA3OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confirmación de Cola</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #212121; /* Fondo oscuro */
+            color: #40C4FF; /* Azul claro para texto */
+        }
+        h1 {
+            color: #40C4FF; /* Azul claro para título */
+        }
+        p {
+            font-size: 18px;
+        }
+        .turno {
+            font-size: 24px;
+            font-weight: bold;
+            color: #80DEEA; /* Azul claro más brillante para destacar */
+        }
+        .error {
+            font-size: 18px;
+            color: #FF5252; /* Rojo para errores */
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('queue_updated', (data) => {
+            const token = "{{ token | default('') }}";
+            const statusDiv = document.getElementById('status');
+            const queue = data.queue;
+            const currentPosition = queue.findIndex(item => item.token === token) + 1;
+
+            if (currentPosition === 1) {
+                statusDiv.innerHTML = '<p class="turno">¡Es tu turno!</p>';
+            } else if (currentPosition > 1) {
+                const number = queue[currentPosition - 1].number;
+                statusDiv.innerHTML = `<p>Tu número es <strong>${number}</strong>, posición <strong>${currentPosition}</strong>.</p>`;
+            } else {
+                statusDiv.innerHTML = '<p>Tu turno ha pasado o no estás en la cola.</p>';
+            }
+        });
+
+        // Carga inicial
+        window.onload = function() {
+            const token = "{{ token | default('') }}";
+            const statusDiv = document.getElementById('status');
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const queue = data.queue;
+                    const currentPosition = queue.findIndex(item => item.token === token) + 1;
+
+                    if (currentPosition === 1) {
+                        statusDiv.innerHTML = '<p class="turno">¡Es tu turno!</p>';
+                    } else if (currentPosition > 1) {
+                        const number = queue[currentPosition - 1].number;
+                        statusDiv.innerHTML = `<p>Tu número es <strong>${number}</strong>, posición <strong>${currentPosition}</strong>.</p>`;
+                    } else {
+                        statusDiv.innerHTML = '<p>Tu turno ha pasado o no estás en la cola.</p>';
+                    }
+                });
+        };
+    </script>
+
+</head>
+<body>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="position: fixed; top: 10px; left: 10px; width: 350px; z-index: 1000;">
+    <h1>Confirmación de Cola</h1>
+    <div id="status">
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% else %}
+            <p>Tu número es <strong>{{ token | default('Cargando...') }}</strong>, posición <strong>Cargando...</strong>.</p>
+        {% endif %}
+    </div>
+    <p>Por favor, espera tu turno.</p>
+</body>
+</html>

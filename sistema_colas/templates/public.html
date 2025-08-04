@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Número Actual</title>
+    <style>
+
+        
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #e0f7fa, #b2ebf2); /* Gradiente suave inspirado en Vista Aero */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            overflow: hidden;
+        }
+        .current-number {
+            font-size: 64px;
+            font-weight: bold;
+            color: #80DEEA; /* Azul claro más brillante, como en tu diseño */
+            border: 4px solid #40C4FF; /* Borde azul claro, como en tu diseño */
+            padding: 20px;
+            border-radius: 15px; /* Bordes más redondeados para iOS/Vista Aero */
+            background-color: rgba(66, 66, 66, 0.8); /* Fondo gris oscuro con opacidad para integrar con glassmorphism */
+            backdrop-filter: blur(10px); /* Efecto vidrio translúcido */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra suave */
+            width: 90%;
+            max-width: 500px;
+            margin: auto;
+        }
+        h1 {
+            margin: 0;
+            font-size: 120px; /* Tamaño más grande para impacto */
+            color: #196a73;
+        }
+        
+    </style>
+ 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('queue_updated', (data) => {
+            const current = data.current;
+            const currentDiv = document.getElementById('current-number');
+            currentDiv.innerHTML = current ? `Número actual:</br> <h1>${current}</h1>` : 'Número actual:</br> <h1>Ninguno</h1>';
+        });
+
+        // Carga inicial
+        window.onload = function() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const current = data.current;
+                    const currentDiv = document.getElementById('current-number');
+                    currentDiv.innerHTML = current ? `Número actual:</br> <h1>${current}</h1>` : 'Número actual:</br> <h1>Ninguno</h1>';
+                });
+        };
+    </script>
+</head>
+<body>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="position: fixed; top: 10px; left: 10px; width: 350px; z-index: 1000;">
+    <div id="current-number">Número actual:</br> <h1>Ninguno</h1></div>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9641831daacb0360',t:'MTc1MzM0MDEyOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
